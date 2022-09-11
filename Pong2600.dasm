@@ -30,14 +30,93 @@ NextFrame
         
 ; 37 lines of underscan
 	TIMER_SETUP 37
-        TIMER_WAIT
+        
+        lda #%0000001
+	sta CTRLPF
+
+	TIMER_WAIT
         
 ; 192 lines of frame
-	TIMER_SETUP 192
+	TIMER_SETUP 5
+        lda #%0000001
+	sta CTRLPF
+	lda #$0E
+        sta COLUPF
+	lda #%11111111        
+        sta PF0
+        sta PF1
+        sta PF2
+        
         TIMER_WAIT
+
+	TIMER_SETUP 20
+	lda #$0E
+        sta COLUPF
+	lda #%00010000        
+        sta PF0
+        lda #%00000000 
+        sta PF1
+	lda #%10000000        
+        sta PF2
+        
+        TIMER_WAIT
+
+
+	TIMER_SETUP 6
+        lda #%0000001
+	sta CTRLPF        
+	lda #$0E
+        sta COLUPF
+	lda #%11111111
+        sta PF0
+        sta PF1
+        sta PF2
+        
+        sta WSYNC
+        sta WSYNC
+        sta WSYNC
+        sta WSYNC
+
+	lda #0
+        sta PF1
+	lda #$04
+        sta COLUPF        
+	lda #%00010000        
+        sta PF0        
+	lda #%10000000        
+        sta PF2
+        TIMER_WAIT
+        
+        
+	TIMER_SETUP 142+9+5
+        
+        
+        TIMER_WAIT
+        
+
+	TIMER_SETUP 5
+
+	lda #$0E
+        sta COLUPF
+	lda #%11111111
+        sta PF0
+        sta PF1
+        sta PF2
+        
+        sta WSYNC
+        sta WSYNC
+        sta WSYNC
+        sta WSYNC
+
+	lda #0
+        sta PF0
+        sta PF1
+        sta PF2        
+        
         
 ; 29 lines of overscan
 	TIMER_SETUP 29
+        
         TIMER_WAIT
         
 ; total = 262 lines, go to next frame
