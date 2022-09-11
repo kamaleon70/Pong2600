@@ -11,7 +11,8 @@
 	org $80
 
 Temp		.byte
-YPos		.byte
+YPos1		.byte
+YPos2		.byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -27,7 +28,9 @@ NextFrame
         bcc Start	; reset?
         
         lda #80
-        sta YPos   
+        sta YPos1  
+        lda #50
+        sta YPos2          
         lda #$0E
         sta COLUP0
         sta COLUP1
@@ -41,6 +44,12 @@ NextFrame
         
         lda #%0000001
 	sta CTRLPF
+        
+        SLEEP 12
+        sta RESP0
+        
+        SLEEP 42
+        sta RESP1
 
 	TIMER_WAIT
         
@@ -102,7 +111,7 @@ NextFrame
 Loop        
 	txa		; X -> A
         sec		; set carry for subtract
-        sbc YPos	; local coordinate
+        sbc YPos1	; local coordinate
         cmp #32 ; in sprite?
         bcc InSprite	; yes, skip over next
         lda #0		; not in sprite, load 0
@@ -116,7 +125,7 @@ NotInSprite
         
 	txa		; X -> A
         sec		; set carry for subtract
-        sbc YPos	; local coordinate
+        sbc YPos2	; local coordinate
         cmp #32 ; in sprite?
         bcc InSprite2	; yes, skip over next
         lda #0		; not in sprite, load 0
