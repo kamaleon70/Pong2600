@@ -11,6 +11,7 @@
 	org $80
 
 Temp		.byte
+YPos		.byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -24,6 +25,13 @@ Start
 NextFrame
         lsr SWCHB	; test Game Reset switch
         bcc Start	; reset?
+        
+        lda #80
+        sta YPos   
+        lda #$0E
+        sta COLUP0
+        sta COLUP1
+        
         
 ; 1 + 3 lines of VSYNC
 	VERTICAL_SYNC
@@ -88,8 +96,42 @@ NextFrame
         TIMER_WAIT
         
         
+        ldx #150
 	TIMER_SETUP 142+9+5
         
+Loop        
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc YPos	; local coordinate
+        cmp #32 ; in sprite?
+        bcc InSprite	; yes, skip over next
+        lda #0		; not in sprite, load 0
+        jmp NotInSprite
+InSprite
+
+        lda #%00111100	; lookup color
+NotInSprite        
+
+        sta GRP0	; store bitmap
+        
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc YPos	; local coordinate
+        cmp #32 ; in sprite?
+        bcc InSprite2	; yes, skip over next
+        lda #0		; not in sprite, load 0
+        jmp NotInSprite2
+InSprite2
+
+        lda #%00111100	; lookup color
+NotInSprite2        
+
+        sta GRP1	; store bitmap   
+        
+        sta WSYNC
+        dex
+        bne Loop
+
         
         TIMER_WAIT
         
@@ -127,9 +169,8 @@ NextFrame
         
 ;---Graphics Data from PlayerPal 2600---
 
-Frame0
-        .byte #%00000000;$00
-        .byte #%00011000;$46
+      
+        
 ;---End Graphics Data---
 
 
