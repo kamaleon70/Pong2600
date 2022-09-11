@@ -121,6 +121,24 @@ NextFrame
         
 ; total = 262 lines, go to next frame
         jmp NextFrame
+        
+        
+        
+        
+;---Graphics Data from PlayerPal 2600---
+
+Frame0
+        .byte #%00000000;$00
+        .byte #%00011000;$46
+;---End Graphics Data---
+
+
+;---Color Data from PlayerPal 2600---
+
+ColorFrame0
+        .byte #$00;
+        .byte #$46;
+;---End Color Data---
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Epilogue
