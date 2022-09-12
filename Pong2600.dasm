@@ -24,7 +24,7 @@ Start
 	CLEAN_START
         lda #80
         sta YPos1  
-        lda #50
+        lda #2
         sta YPos2  
 
 NextFrame
@@ -106,7 +106,7 @@ NextFrame
         TIMER_WAIT
         
         
-        ldx #150
+        ldx #(142+9+3)
 	TIMER_SETUP 142+9+5
         
 Loop        
@@ -195,29 +195,45 @@ NoMov3
         dec YPos2
         dec YPos2
 NoMov4
-        
+
+	lda YPos2
+        lsr
+        bne OK
+  	lda #2
+        sta YPos2
+OK
+
+
+	lda YPos1
+        lsr
+        bne OK2
+  	lda #2
+        sta YPos1
+OK2
+      
+      
+      	lda YPos2
+        lsr
+        cmp #$3D
+        bmi OK3
+  	lda #$7A
+        sta YPos2
+OK3
+
+
+	lda YPos1
+        lsr
+        cmp #$3D
+        bmi OK4
+  	lda #$7A
+        sta YPos1
+OK4
+      
         TIMER_WAIT
         
 ; total = 262 lines, go to next frame
         jmp NextFrame
         
-        
-        
-        
-;---Graphics Data from PlayerPal 2600---
-
-      
-        
-;---End Graphics Data---
-
-
-;---Color Data from PlayerPal 2600---
-
-ColorFrame0
-        .byte #$00;
-        .byte #$46;
-;---End Color Data---
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Epilogue
 
