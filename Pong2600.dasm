@@ -22,15 +22,16 @@ YPos2		.byte
 
 Start
 	CLEAN_START
+        lda #80
+        sta YPos1  
+        lda #50
+        sta YPos2  
 
 NextFrame
         lsr SWCHB	; test Game Reset switch
         bcc Start	; reset?
         
-        lda #80
-        sta YPos1  
-        lda #50
-        sta YPos2          
+        
         lda #$0E
         sta COLUP0
         sta COLUP1
@@ -167,6 +168,33 @@ NotInSprite2
         
 ; 29 lines of overscan
 	TIMER_SETUP 29
+        
+        lda SWCHA
+        and #%00010000
+        bne NoMov
+        inc YPos1
+        inc YPos1
+NoMov
+	lda SWCHA
+        and #%00100000
+        bne NoMov2
+        dec YPos1
+        dec YPos1
+NoMov2
+
+        lda SWCHA
+        and #%00000001
+        bne NoMov3
+        inc YPos2
+        inc YPos2
+NoMov3
+
+	lda SWCHA
+        and #%00000010
+        bne NoMov4
+        dec YPos2
+        dec YPos2
+NoMov4
         
         TIMER_WAIT
         
