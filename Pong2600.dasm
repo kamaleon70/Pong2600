@@ -13,6 +13,8 @@
 Temp		.byte
 YPos1		.byte
 YPos2		.byte
+YPos1End	.byte
+YPos2End	.byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -23,9 +25,15 @@ YPos2		.byte
 Start
 	CLEAN_START
         lda #80
-        sta YPos1  
+        sta YPos1
+        clc
+        adc #32
+        sta YPos1End
         lda #2
         sta YPos2  
+        clc
+        adc #32
+        sta YPos2End
 
 NextFrame
         lsr SWCHB	; test Game Reset switch
@@ -109,34 +117,37 @@ NextFrame
         ldx #(142+9+3)
 	TIMER_SETUP 142+9+5
         
-Loop        
-	txa		; X -> A
-        sec		; set carry for subtract
-        sbc YPos1	; local coordinate
-        cmp #32 ; in sprite?
-        bcc InSprite	; yes, skip over next
-        lda #0		; not in sprite, load 0
-        jmp NotInSprite
-InSprite
+Loop
 
-        lda #%00111100	; lookup color
-NotInSprite        
+; Draw sprites
 
-        sta GRP0	; store bitmap
-        
-	txa		; X -> A
-        sec		; set carry for subtract
-        sbc YPos2	; local coordinate
-        cmp #32 ; in sprite?
-        bcc InSprite2	; yes, skip over next
-        lda #0		; not in sprite, load 0
-        jmp NotInSprite2
-InSprite2
+	cpx YPos1
+        bne NotBeginSprite
+        lda #0
+        sta GRP0
+        jmp SpriteCompleted
+NotBeginSprite
+	cpx YPos1End
+        bne SpriteCompleted
+        lda #%00111100
+        sta GRP0
+SpriteCompleted    
 
-        lda #%00111100	; lookup color
-NotInSprite2        
 
-        sta GRP1	; store bitmap   
+	cpx YPos2
+        bne NotBeginSprite2
+        lda #0
+        sta GRP1
+        jmp SpriteCompleted2
+NotBeginSprite2
+	cpx YPos2End
+        bne SpriteCompleted2
+        lda #%00111100
+        sta GRP1
+SpriteCompleted2 
+
+
+
         
         sta WSYNC
         dex
@@ -174,6 +185,8 @@ NotInSprite2
         bne NoMov
         inc YPos1
         inc YPos1
+        inc YPos1End
+        inc YPos1End
 NoMov
 	lda SWCHA
         and #%00100000
@@ -233,6 +246,25 @@ OK4
         
 ; total = 262 lines, go to next frame
         jmp NextFrame
+
+DrawSprite2 SUBROUTINE
+	sty Temp
+	cpx Temp
+        bne .NotBeginSprite
+        lda #0
+        sta GRP1
+        jmp .SpriteCompleted
+.NotBeginSprite
+	tya
+        clc
+        adc #32
+        sta Temp
+	cpx Temp
+        bne .SpriteCompleted
+        lda #%01111000
+        sta GRP1
+.SpriteCompleted
+	rts        
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Epilogue
