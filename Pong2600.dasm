@@ -22,28 +22,34 @@ YPos2End	.byte
 	seg Code
         org $f000
 
+; Start and Initialization
 Start
 	CLEAN_START
         lda #80
         sta YPos1
-        clc
-        adc #32
+        lda #80+32
         sta YPos1End
         lda #2
         sta YPos2  
-        clc
-        adc #32
+        lda #2+32
         sta YPos2End
-
-NextFrame
-        lsr SWCHB	; test Game Reset switch
-        bcc Start	; reset?
         
+        sta WSYNC
+        SLEEP 21
+        sta RESP0
+        
+        SLEEP 42
+        sta RESP1        
         
         lda #$0E
         sta COLUP0
         sta COLUP1
-        
+
+
+; Game Loop
+NextFrame
+        lsr SWCHB	; test Game Reset switch
+        bcc Start	; reset?
         
 ; 1 + 3 lines of VSYNC
 	VERTICAL_SYNC
@@ -53,12 +59,6 @@ NextFrame
         
         lda #%0000001
 	sta CTRLPF
-        
-        SLEEP 12
-        sta RESP0
-        
-        SLEEP 42
-        sta RESP1
 
 	TIMER_WAIT
         
@@ -97,11 +97,10 @@ NextFrame
         sta PF0
         sta PF1
         sta PF2
-        
-        sta WSYNC
-        sta WSYNC
-        sta WSYNC
-        sta WSYNC
+
+	REPEAT 4
+        	sta WSYNC
+        REPEND
 
 	lda #0
         sta PF1
@@ -142,7 +141,7 @@ SpriteCompleted
 NotBeginSprite2
 	cpx YPos2End
         bne SpriteCompleted2
-        lda #%00111100
+        lda #%01111000
         sta GRP1
 SpriteCompleted2 
 
@@ -166,10 +165,9 @@ SpriteCompleted2
         sta PF1
         sta PF2
         
-        sta WSYNC
-        sta WSYNC
-        sta WSYNC
-        sta WSYNC
+	REPEAT 4
+        	sta WSYNC
+        REPEND
 
 	lda #0
         sta PF0
@@ -193,6 +191,8 @@ NoMov
         bne NoMov2
         dec YPos1
         dec YPos1
+        dec YPos1End
+        dec YPos1End     
 NoMov2
 
         lda SWCHA
@@ -200,6 +200,8 @@ NoMov2
         bne NoMov3
         inc YPos2
         inc YPos2
+        inc YPos2End
+        inc YPos2End     
 NoMov3
 
 	lda SWCHA
@@ -207,39 +209,47 @@ NoMov3
         bne NoMov4
         dec YPos2
         dec YPos2
+        dec YPos2End
+        dec YPos2End        
 NoMov4
 
 	lda YPos2
-        lsr
         bne OK
   	lda #2
         sta YPos2
+        clc
+        adc #32
+        sta YPos2End        
 OK
 
 
 	lda YPos1
-        lsr
         bne OK2
   	lda #2
         sta YPos1
+        clc
+        adc #32
+        sta YPos1End 
 OK2
       
       
-      	lda YPos2
-        lsr
-        cmp #$3D
+      	lda YPos2End
+        cmp #$9A
         bmi OK3
-  	lda #$7A
-        sta YPos2
+  	lda #$98
+        sta YPos2End
+        lda #$78
+        sta YPos2         
 OK3
 
 
-	lda YPos1
-        lsr
-        cmp #$3D
+      	lda YPos1End
+        cmp #$9A
         bmi OK4
-  	lda #$7A
-        sta YPos1
+  	lda #$98
+        sta YPos1End
+        lda #$78
+        sta YPos1 
 OK4
       
         TIMER_WAIT
@@ -247,25 +257,6 @@ OK4
 ; total = 262 lines, go to next frame
         jmp NextFrame
 
-DrawSprite2 SUBROUTINE
-	sty Temp
-	cpx Temp
-        bne .NotBeginSprite
-        lda #0
-        sta GRP1
-        jmp .SpriteCompleted
-.NotBeginSprite
-	tya
-        clc
-        adc #32
-        sta Temp
-	cpx Temp
-        bne .SpriteCompleted
-        lda #%01111000
-        sta GRP1
-.SpriteCompleted
-	rts        
-        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Epilogue
 
