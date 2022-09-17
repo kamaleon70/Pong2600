@@ -15,6 +15,9 @@ YPos1		.byte
 YPos2		.byte
 YPos1End	.byte
 YPos2End	.byte
+Score0	byte	; BCD score of player 0
+Score1	byte	; BCD score of player 1
+FontBuf	ds 10	; 2x5 array of playfield bytes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -77,6 +80,13 @@ NextFrame
         
         lda #%0000001
 	sta CTRLPF
+        
+        lda Score0
+        ldx #0
+	jsr GetBCDBitmap
+	lda Score1
+        ldx #5
+	jsr GetBCDBitmap
 
 	TIMER_WAIT
         
@@ -84,6 +94,16 @@ NextFrame
 ; 192 lines of frame
 
 ; First part playfield
+
+
+; First, we'll draw the scoreboard.
+; Put the playfield into score mode (bit 2) which gives
+; two different colors for the left/right side of
+; the playfield (given by COLUP0 and COLUP1).
+
+; Now we draw all four digits.
+
+        
 	TIMER_SETUP 5
         lda #%0000001
 	sta CTRLPF
@@ -95,23 +115,40 @@ NextFrame
         sta PF2
         TIMER_WAIT
         
-	TIMER_SETUP 20
-	lda #$0E
-        sta COLUPF
-	lda #%00010000        
+        ldy #0		; Y will contain the frame Y coordinate
         sta PF0
-        lda #%00000000 
         sta PF1
-	lda #%10000000        
+        sta PF2
+        lda #%00010010	; score mode + 2 pixel ball
+        sta CTRLPF
+        lda #$48
+        sta COLUP0	; set color for left
+        lda #$a8
+        sta COLUP1	; set color for right        
+ScanLoop1a
+	sta WSYNC
+        tya
+        lsr		; divide Y by two for double-height lines
+        tax		; -> X
+        lda FontBuf+0,x
+        sta PF1		; set left score bitmap
+        SLEEP 28
+        lda FontBuf+5,x
+        sta PF1		; set right score bitmap
+        iny
+        cpy #10
+        bcc ScanLoop1a
+
+        
+	TIMER_SETUP 10
+        lda #0		; Y will contain the frame Y coordinate
+        sta PF0
+        sta PF1
         sta PF2
         
-        ; Enable Missile 0
-        lda #%00000010
-        sta ENAM0
+        sta WSYNC
+        sta WSYNC
         
-        TIMER_WAIT
-
-	TIMER_SETUP 6
         lda #%0000001
 	sta CTRLPF        
 	lda #$0E
@@ -143,7 +180,7 @@ Loop
 
 ; Draw sprites
 
-	cpx YPos1
+        cpx YPos1
         bne NotBeginSprite
         lda #0
         sta GRP0
@@ -153,10 +190,10 @@ NotBeginSprite
         bne SpriteCompleted
         lda #%00111100
         sta GRP0
-SpriteCompleted    
+SpriteCompleted  
 
 
-	cpx YPos2
+        cpx YPos2
         bne NotBeginSprite2
         lda #0
         sta GRP1
@@ -166,7 +203,8 @@ NotBeginSprite2
         bne SpriteCompleted2
         lda #%01111000
         sta GRP1
-SpriteCompleted2 
+SpriteCompleted2  
+
 
         sta WSYNC
         dex
@@ -283,6 +321,72 @@ OK4
 ; total = 262 lines, go to next frame
         jmp NextFrame
 
+
+; Fetches bitmap data for two digits of a
+; BCD-encoded number, storing it in addresses
+; FontBuf+x to FontBuf+4+x.
+GetBCDBitmap subroutine
+; First fetch the bytes for the 1st digit
+	pha		; save original BCD number
+        and #$0F	; mask out the least significant digit
+        sta Temp
+        asl
+        asl
+        adc Temp	; multiply by 5
+        tay		; -> Y
+        lda #5
+        sta Temp	; count down from 5
+.loop1
+        lda DigitsBitmap,y
+        and #$0F	; mask out leftmost digit
+        sta FontBuf,x	; store leftmost digit
+        iny
+        inx
+        dec Temp
+        bne .loop1
+; Now do the 2nd digit
+        pla		; restore original BCD number
+        lsr
+        lsr
+        lsr
+        lsr		; shift right by 4 (in BCD, divide by 10)
+        sta Temp
+        asl
+        asl
+        adc Temp	; multiply by 5
+        tay		; -> Y
+        dex
+        dex
+        dex
+        dex
+        dex		; subtract 5 from X (reset to original)
+        lda #5
+        sta Temp	; count down from 5
+.loop2
+        lda DigitsBitmap,y
+        and #$F0	; mask out leftmost digit
+        ora FontBuf,x	; combine left and right digits
+        sta FontBuf,x	; store combined digits
+        iny
+        inx
+        dec Temp
+        bne .loop2
+	rts
+
+	org $FF00
+
+; Bitmap pattern for digits
+DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
+        .byte $EE,$AA,$AA,$AA,$EE
+        .byte $22,$22,$22,$22,$22
+        .byte $EE,$22,$EE,$88,$EE
+        .byte $EE,$22,$66,$22,$EE
+        .byte $AA,$AA,$EE,$22,$22
+        .byte $EE,$88,$EE,$22,$EE
+        .byte $EE,$88,$EE,$AA,$EE
+        .byte $EE,$22,$22,$22,$22
+        .byte $EE,$AA,$EE,$AA,$EE
+        .byte $EE,$AA,$EE,$22,$EE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Epilogue
