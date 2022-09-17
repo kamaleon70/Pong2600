@@ -18,6 +18,8 @@ YPos2End	.byte
 Score0	byte	; BCD score of player 0
 Score1	byte	; BCD score of player 1
 FontBuf	ds 10	; 2x5 array of playfield bytes
+CountMidLine	.byte
+MidLineEnabled	.byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -56,6 +58,11 @@ Start
         
         lda #%00010000
         sta NUSIZ0
+        
+        lda #0
+        sta CountMidLine
+
+        sta MidLineEnabled
 
 	; For Missile 0 used to draw middle line
         lda #$10
@@ -165,11 +172,13 @@ ScanLoop1a
 
 	lda #0
         sta PF1
-        sta PF2        
+      
 	lda #$04
         sta COLUPF        
 	lda #%00010000        
         sta PF0        
+        lda #%10000000
+        sta PF2
         TIMER_WAIT
         
 
