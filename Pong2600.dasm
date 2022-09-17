@@ -41,12 +41,24 @@ Start
         SLEEP 21
         sta RESP0
         
-        SLEEP 42
+        SLEEP 21
+        sta RESM0
+        
+        SLEEP 18
         sta RESP1        
         
         lda #$0E
         sta COLUP0
         sta COLUP1
+        
+        lda #%00010000
+        sta NUSIZ0
+
+	; For Missile 0 used to draw middle line
+        lda #$10
+        sta HMM0
+        sta WSYNC
+        sta HMOVE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Game Loop
@@ -92,6 +104,11 @@ NextFrame
         sta PF1
 	lda #%10000000        
         sta PF2
+        
+        ; Enable Missile 0
+        lda #%00000010
+        sta ENAM0
+        
         TIMER_WAIT
 
 	TIMER_SETUP 6
@@ -105,17 +122,16 @@ NextFrame
         sta PF2
 
 	REPEAT 4
-        	sta WSYNC
+          sta WSYNC
         REPEND
 
 	lda #0
         sta PF1
+        sta PF2        
 	lda #$04
         sta COLUPF        
 	lda #%00010000        
         sta PF0        
-	lda #%10000000        
-        sta PF2
         TIMER_WAIT
         
 
@@ -169,8 +185,12 @@ SpriteCompleted2
         sta PF2
         
 	REPEAT 4
-        	sta WSYNC
+          sta WSYNC
         REPEND
+
+	; Disable missile 0
+	lda #%00000000
+        sta ENAM0
 
 	lda #0
         sta PF0
