@@ -114,7 +114,7 @@ NextFrame
         sta PF1
         sta PF2
         TIMER_WAIT
-        
+      
         ldy #0		; Y will contain the frame Y coordinate
         sta PF0
         sta PF1
@@ -125,6 +125,7 @@ NextFrame
         sta COLUP0	; set color for left
         lda #$a8
         sta COLUP1	; set color for right        
+        sta WSYNC
 ScanLoop1a
 	sta WSYNC
         tya
@@ -173,8 +174,8 @@ ScanLoop1a
         
 
 ; Section game field
-        ldx #(142+9+3)
-	TIMER_SETUP 142+9+5
+        ldx #160
+
         
 Loop
 
@@ -205,16 +206,13 @@ NotBeginSprite2
         sta GRP1
 SpriteCompleted2  
 
-
         sta WSYNC
         dex
         bne Loop
-        TIMER_WAIT
+        lda #3
 
 
 ; Close playfield
-	TIMER_SETUP 5
-
 	lda #$0E
         sta COLUPF
 	lda #%11111111
@@ -233,7 +231,10 @@ SpriteCompleted2
 	lda #0
         sta PF0
         sta PF1
-        sta PF2        
+        sta PF2  
+        
+        sta WSYNC
+        sta WSYNC
         
         
 ; 29 lines of overscan
@@ -299,20 +300,20 @@ OK2
       
       
       	lda YPos2End
-        cmp #$9A
+        cmp #$A2
         bmi OK3
-  	lda #$98
+  	lda #$A0
         sta YPos2End
-        lda #$78
+        lda #$80
         sta YPos2         
 OK3
 
       	lda YPos1End
-        cmp #$9A
+        cmp #$A2
         bmi OK4
-  	lda #$98
+  	lda #$A0
         sta YPos1End
-        lda #$78
+        lda #$80
         sta YPos1 
 OK4
       
