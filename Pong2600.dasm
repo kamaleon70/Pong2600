@@ -20,6 +20,9 @@ Score1	byte	; BCD score of player 1
 FontBuf	ds 10	; 2x5 array of playfield bytes
 CountMidLine	.byte
 MidLineEnabled	.byte
+BallPosX	.byte
+BallPosY	.byte
+PreviousBall	.byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -50,7 +53,10 @@ Start
         sta RESM0
         
         SLEEP 18
-        sta RESP1        
+        sta RESP1
+        
+        lda #0
+        sta PreviousBall
         
         lda #$0E
         sta COLUP0
@@ -61,6 +67,8 @@ Start
         
         lda #0
         sta CountMidLine
+        lda #5
+        sta BallPosX
 
         sta MidLineEnabled
 
@@ -69,7 +77,13 @@ Start
         sta HMM0
         sta WSYNC
         sta HMOVE
-
+        
+        lda #140
+        sta BallPosY
+        
+        lda #%00000010
+        sta ENABL
+        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Game Loop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -94,6 +108,25 @@ NextFrame
 	lda Score1
         ldx #5
 	jsr GetBCDBitmap
+        
+        inc BallPosX
+        lda BallPosX
+        ldx #4
+        jsr SetHorizPos
+       	sta WSYNC
+        sta HMOVE
+        
+        lda #%00000000
+        sta ENABL   
+        
+        lda BallPosX
+        cmp #$9E
+        bne NoExitBall
+        lda #3
+        sta BallPosX
+NoExitBall
+	inc BallPosY
+
 
 	TIMER_WAIT
         
@@ -149,6 +182,7 @@ ScanLoop1a
 
         
 	TIMER_SETUP 10
+     
         lda #0		; Y will contain the frame Y coordinate
         sta PF0
         sta PF1
@@ -157,7 +191,7 @@ ScanLoop1a
         sta WSYNC
         sta WSYNC
         
-        lda #%0000001
+        lda #%00010001
 	sta CTRLPF        
 	lda #$0E
         sta COLUPF
@@ -170,15 +204,7 @@ ScanLoop1a
           sta WSYNC
         REPEND
 
-	lda #0
-        sta PF1
-      
-	lda #$04
-        sta COLUPF        
-	lda #%00010000        
-        sta PF0        
-        lda #%10000000
-        sta PF2
+
         TIMER_WAIT
         
 
@@ -189,6 +215,24 @@ ScanLoop1a
 Loop
 
 ; Draw sprites
+
+
+	cpx BallPosY
+        bne NoBall
+        lda #%00000010
+        sta ENABL
+        lda #3
+        sta PreviousBall
+        jmp Ball
+NoBall
+	lda PreviousBall
+        beq NextBall
+        dec PreviousBall
+        jmp Ball
+NextBall        
+	lda #0
+        sta ENABL
+Ball
 
         cpx YPos1
         bne NotBeginSprite
@@ -203,6 +247,8 @@ NotBeginSprite
 SpriteCompleted  
 
 
+
+
         cpx YPos2
         bne NotBeginSprite2
         lda #0
@@ -213,9 +259,30 @@ NotBeginSprite2
         bne SpriteCompleted2
         lda #%01111000
         sta GRP1
-SpriteCompleted2  
+SpriteCompleted2
+
+
 
         sta WSYNC
+
+	cpx #$A0
+        bne NotChangePlayfield
+       	lda #0
+        sta PF1
+	lda #%00010000        
+        sta PF0        
+        lda #%10000000
+        sta PF2
+NotChangePlayfield        
+
+	cpx #4
+        bne ChangePlayfield
+       	lda #%11111111
+        sta PF1
+        sta PF0        
+        sta PF2
+ChangePlayfield 
+
         dex
         bne Loop
         lda #3
@@ -397,6 +464,46 @@ DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
         .byte $EE,$22,$22,$22,$22
         .byte $EE,$AA,$EE,$AA,$EE
         .byte $EE,$AA,$EE,$22,$EE
+        
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SetHorizPos routine
+; A = X coordinate
+; X = player number (0 or 1)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; After this subroutine it is necessary to use
+;
+; 	sta WSYNC
+; 	sta HMOVE
+;
+; to correctly set the parameters
+; Then better to set (after waitin 26 cpu cycles)
+;
+; 	sta HMCLR
+;
+; so next sta HMOVE will not impact the position
+
+; Everything should be in the same page
+; otherwise the timing is not correct
+
+; The entire routine is positioned in memory at the end just to
+; assure that the branch is not moving to a different page
+; Total size of the routine 18 bytes.
+
+SetHorizPos SUBROUTINE
+	sec		; set carry flag
+	sta WSYNC	; start a new line
+.DivideLoop
+	sbc #15		; subtract 15
+	bcs .DivideLoop	; branch until negative
+	eor #7		; calculate fine offset
+        asl
+        asl
+        asl
+        asl
+	sta HMP0,x	; set fine offset
+	sta RESP0,x	; fix coarse position
+	rts		; return to caller        
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Epilogue
