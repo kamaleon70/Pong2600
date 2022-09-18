@@ -23,6 +23,8 @@ MidLineEnabled	.byte
 BallPosX	.byte
 BallPosY	.byte
 PreviousBall	.byte
+BallDirectionX	.byte
+BallDirectionY	.byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -67,6 +69,8 @@ Start
         
         lda #0
         sta CountMidLine
+        sta BallDirectionX
+        sta BallDirectionY
         lda #5
         sta BallPosX
 
@@ -109,7 +113,14 @@ NextFrame
         ldx #5
 	jsr GetBCDBitmap
         
+        lda BallDirectionX
+        bne DecX
+        
         inc BallPosX
+        jmp XDirection
+DecX
+	dec BallPosX
+XDirection
         lda BallPosX
         ldx #4
         jsr SetHorizPos
@@ -125,8 +136,15 @@ NextFrame
         lda #3
         sta BallPosX
 NoExitBall
-	inc BallPosY
 
+
+        lda BallDirectionY
+        bne DecY
+	inc BallPosY
+        jmp YDirection
+DecY
+	dec BallPosY
+YDirection
 
 	TIMER_WAIT
         
@@ -392,7 +410,56 @@ OK3
         lda #$80
         sta YPos1 
 OK4
-      
+
+
+	bit CXP1FB
+        bvc NoHitPlayer1
+        lda BallDirectionX
+        eor #%00000001
+        sta BallDirectionX
+NoHitPlayer1    
+
+	bit CXP0FB
+        bvc NoHitPlayer0
+        lda BallDirectionX
+        eor #%00000001
+        sta BallDirectionX
+NoHitPlayer0
+
+	lda BallPosY
+        cmp #160
+        bne NoHitTopWall
+        lda BallDirectionY
+        eor #%00000001
+        sta BallDirectionY
+NoHitTopWall
+
+	lda BallPosY
+        cmp #6
+        bne NoHitBottomWall
+        lda BallDirectionY
+        eor #%00000001
+        sta BallDirectionY
+NoHitBottomWall
+
+	lda BallPosX
+        cmp #$9D
+        bne NoHitRightWall
+        lda #50
+        sta BallPosX
+        inc Score0
+NoHitRightWall
+
+	lda BallPosX
+        cmp #2
+        bne NoHitLeftWall
+        lda #50
+        sta BallPosX
+        inc Score1
+NoHitLeftWall
+
+
+        sta CXCLR
         TIMER_WAIT
         
 ; total = 262 lines, go to next frame
