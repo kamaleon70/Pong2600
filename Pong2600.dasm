@@ -442,22 +442,35 @@ NoHitTopWall
         sta BallDirectionY
 NoHitBottomWall
 
+	sed
 	lda BallPosX
         cmp #$9D
         bne NoHitRightWall
-        lda #50
+        lda #100
         sta BallPosX
-        inc Score0
+        lda BallDirectionX
+        eor #%00000001
+        sta BallDirectionX        
+        clc
+        lda Score0
+        adc #1
+        sta Score0
 NoHitRightWall
 
 	lda BallPosX
-        cmp #2
+        cmp #4
         bne NoHitLeftWall
         lda #50
-        sta BallPosX
-        inc Score1
+	sta BallPosX        
+        lda BallDirectionX
+        eor #%00000001
+        sta BallDirectionX        
+        clc
+        lda Score1
+        adc #1
+        sta Score1
 NoHitLeftWall
-
+	cld
 
         sta CXCLR
         TIMER_WAIT
