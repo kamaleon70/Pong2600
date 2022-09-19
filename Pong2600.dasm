@@ -88,6 +88,12 @@ Start
         lda #%00000010
         sta ENABL
         
+        lda #4
+        sta AUDC0
+        lda #5
+        sta AUDF0
+ 
+        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Game Loop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -102,6 +108,9 @@ NextFrame
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        
 ; 37 lines of underscan
 	TIMER_SETUP 37
+        
+        lda #0
+        sta AUDV0
         
         lda #%0000001
 	sta CTRLPF
@@ -415,6 +424,8 @@ OK4
         lda BallDirectionX
         eor #%00000001
         sta BallDirectionX
+        lda #6
+        sta AUDV0
 NoHitPlayer1    
 
 	bit CXP0FB
@@ -422,7 +433,9 @@ NoHitPlayer1
         lda BallDirectionX
         eor #%00000001
         sta BallDirectionX
-NoHitPlayer0
+        lda #6
+        sta AUDV0
+NoHitPlayer0  
 
 	lda BallPosY
         cmp #160
@@ -430,6 +443,8 @@ NoHitPlayer0
         lda BallDirectionY
         eor #%00000001
         sta BallDirectionY
+        lda #6
+        sta AUDV0
 NoHitTopWall
 
 	lda BallPosY
@@ -438,6 +453,8 @@ NoHitTopWall
         lda BallDirectionY
         eor #%00000001
         sta BallDirectionY
+        lda #6
+        sta AUDV0
 NoHitBottomWall
 
 	sed
