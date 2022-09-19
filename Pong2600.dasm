@@ -106,6 +106,9 @@ NextFrame
         lda #%0000001
 	sta CTRLPF
         
+        lda #$C2
+        sta COLUPF
+        
         lda Score0
         ldx #0
 	jsr GetBCDBitmap
@@ -162,11 +165,10 @@ YDirection
 ; Now we draw all four digits.
 
         
-	TIMER_SETUP 5
+	TIMER_SETUP 6
         lda #%0000001
 	sta CTRLPF
-	lda #$0E
-        sta COLUPF
+
 	lda #%11111111        
         sta PF0
         sta PF1
@@ -174,9 +176,9 @@ YDirection
         TIMER_WAIT
       
         ldy #0		; Y will contain the frame Y coordinate
-        sta PF0
-        sta PF1
-        sta PF2
+        sty PF0
+        sty PF1
+        sty PF2
         lda #%00010010	; score mode + 2 pixel ball
         sta CTRLPF
         lda #$48
@@ -191,7 +193,7 @@ ScanLoop1a
         tax		; -> X
         lda FontBuf+0,x
         sta PF1		; set left score bitmap
-        SLEEP 28
+        SLEEP 24
         lda FontBuf+5,x
         sta PF1		; set right score bitmap
         iny
@@ -199,7 +201,7 @@ ScanLoop1a
         bcc ScanLoop1a
 
         
-	TIMER_SETUP 10
+	TIMER_SETUP 9
      
         lda #0		; Y will contain the frame Y coordinate
         sta PF0
@@ -211,7 +213,7 @@ ScanLoop1a
         
         lda #%00010001
 	sta CTRLPF        
-	lda #$0E
+	lda #$C2
         sta COLUPF
 	lda #%11111111
         sta PF0
@@ -229,11 +231,18 @@ ScanLoop1a
 ; Section game field
         ldx #160
 
+        lda #$0E
+        sta COLUPF
         
+        lda #0
+        sta PF1
+	lda #%00010000        
+        sta PF0        
+        lda #%10000000
+        sta PF2
 Loop
 
 ; Draw sprites
-
 
 	cpx BallPosY
         bne NoBall
@@ -265,8 +274,6 @@ NotBeginSprite
 SpriteCompleted  
 
 
-
-
         cpx YPos2
         bne NotBeginSprite2
         lda #0
@@ -279,27 +286,18 @@ NotBeginSprite2
         sta GRP1
 SpriteCompleted2
 
-
-
-        sta WSYNC
-
-	cpx #$A0
-        bne NotChangePlayfield
-       	lda #0
-        sta PF1
-	lda #%00010000        
-        sta PF0        
-        lda #%10000000
-        sta PF2
-NotChangePlayfield        
-
+	STA WSYNC
 	cpx #4
         bne ChangePlayfield
+	lda #$C2
+        sta COLUPF
+        
        	lda #%11111111
         sta PF1
         sta PF0        
         sta PF2
 ChangePlayfield 
+
 
         dex
         bne Loop
@@ -307,7 +305,7 @@ ChangePlayfield
 
 
 ; Close playfield
-	lda #$0E
+	lda #$C2
         sta COLUPF
 	lda #%11111111
         sta PF0
