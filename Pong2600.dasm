@@ -3,6 +3,8 @@
         include "vcs.h"
         include "macro.h"
         include "xmacro.h"
+        
+SpriteHeight	equ 33        
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Variables segment
@@ -174,15 +176,27 @@ YDirection
 ; Now we draw all four digits.
 
         
-	TIMER_SETUP 6
+
         lda #%0000001
 	sta CTRLPF
 
 	lda #%11111111        
-        sta PF0
         sta PF1
         sta PF2
-        TIMER_WAIT
+        
+       	lda #%11001111
+        sta PF0   
+        sta WSYNC        
+       	lda #%11101111
+        sta PF0   
+        sta WSYNC        
+
+	lda #%11111111        
+        sta PF0
+        
+        REPEAT 4
+          sta WSYNC
+	REPEND
       
         ldy #0		; Y will contain the frame Y coordinate
         sty PF0
@@ -229,16 +243,11 @@ ScanLoop1a
         sta PF1
         sta PF2
 
-	REPEAT 4
-          sta WSYNC
-        REPEND
-
-
         TIMER_WAIT
         
 
 ; Section game field
-        ldx #160
+        ldx #160-4
 
         lda #$0E
         sta COLUPF
@@ -249,9 +258,10 @@ ScanLoop1a
         sta PF0        
         lda #%10000000
         sta PF2
+        sta WSYNC
 Loop
 
-; Draw sprites
+; Draw ball
 
 	cpx BallPosY
         bne NoBall
@@ -270,34 +280,39 @@ NextBall
         sta ENABL
 Ball
 
-        cpx YPos1
-        bne NotBeginSprite
-        lda #0
-        sta GRP0
-        jmp SpriteCompleted
-NotBeginSprite
-	cpx YPos1End
-        bne SpriteCompleted
-        lda #%00111100
-        sta GRP0
-SpriteCompleted  
+
+; Draw Sprites
+
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc YPos1	; local coordinate
+        cmp #SpriteHeight ; in sprite?
+        bcc InSprite	; yes, skip over next
+        lda #0		; not in sprite, load 0
+InSprite
+	tay		; local coord -> Y
+        lda PlayerSprite,y	; lookup frame data
+        sta GRP0	; store bitmap
 
 
-        cpx YPos2
-        bne NotBeginSprite2
-        lda #0
-        sta GRP1
-        jmp SpriteCompleted2
-NotBeginSprite2
-	cpx YPos2End
-        bne SpriteCompleted2
-        lda #%01111000
-        sta GRP1
-SpriteCompleted2
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc YPos2	; local coordinate
+        cmp #SpriteHeight ; in sprite?
+        bcc InSprite2	; yes, skip over next
+        lda #0		; not in sprite, load 0
+InSprite2
+	tay		; local coord -> Y
+        lda PlayerSprite,y	; lookup frame data
+        sta GRP1	; store bitmap
 
+
+	dex
 	STA WSYNC
-	cpx #4
-        bne ChangePlayfield
+        bne Loop
+
+
+; Lower part of the playfield
 	lda #$C2
         sta COLUPF
         
@@ -305,30 +320,20 @@ SpriteCompleted2
         sta PF1
         sta PF0        
         sta PF2
-ChangePlayfield 
 
-
-        dex
-        bne Loop
-        lda #3
-
-
-; Close playfield
-	lda #$C2
-        sta COLUPF
-	lda #%11111111
-        sta PF0
-        sta PF1
-        sta PF2
-        
-	REPEAT 4
+	REPEAT 5
           sta WSYNC
         REPEND
+        
+       	lda #%11101111
+        sta PF0   
+        sta WSYNC
+       	lda #%11001111
+        sta PF0   
+        sta WSYNC
+        
 
-	; Disable missile 0
-	lda #%00000000
-        sta ENAM0
-
+; Clear playfield
 	lda #0
         sta PF0
         sta PF1
@@ -559,6 +564,44 @@ DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
         .byte $EE,$22,$22,$22,$22
         .byte $EE,$AA,$EE,$AA,$EE
         .byte $EE,$AA,$EE,$22,$EE
+        
+;---Graphics Data from PlayerPal 2600---
+
+; Player graphics data
+PlayerSprite
+        .byte #%00000000;--
+        .byte #%00011000;--
+        .byte #%00111100;--
+        .byte #%00111100;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--   
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--      
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%01111110;--
+        .byte #%00111100;--
+        .byte #%00111100;--
+        .byte #%00011000;--
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; SetHorizPos routine
