@@ -15,13 +15,9 @@ SpriteHeight	equ 33
 Temp		.byte
 YPos1		.byte
 YPos2		.byte
-YPos1End	.byte
-YPos2End	.byte
 Score0	byte	; BCD score of player 0
 Score1	byte	; BCD score of player 1
 FontBuf	ds 10	; 2x5 array of playfield bytes
-CountMidLine	.byte
-MidLineEnabled	.byte
 BallPosX	.byte
 BallPosY	.byte
 PreviousBall	.byte
@@ -42,25 +38,13 @@ Start
 	CLEAN_START
         lda #80
         sta YPos1
-        lda #80+32
-        sta YPos1End
         lda #2
         sta YPos2  
-        lda #2+32
-        sta YPos2End
-        
-        sta WSYNC
-        SLEEP 21
-        sta RESP0
-        
-        SLEEP 21
-        sta RESM0
-        
-        SLEEP 18
-        sta RESP1
-        
+
         lda #0
         sta PreviousBall
+        sta BallDirectionX
+        sta BallDirectionY        
         
         lda #$0E
         sta COLUP0
@@ -69,21 +53,9 @@ Start
         lda #%00010000
         sta NUSIZ0
         
-        lda #0
-        sta CountMidLine
-        sta BallDirectionX
-        sta BallDirectionY
         lda #5
         sta BallPosX
 
-        sta MidLineEnabled
-
-	; For Missile 0 used to draw middle line
-        lda #$10
-        sta HMM0
-        sta WSYNC
-        sta HMOVE
-        
         lda #140
         sta BallPosY
         
@@ -111,6 +83,15 @@ NextFrame
 ; 37 lines of underscan
 	TIMER_SETUP 37
         
+        ldx #0
+        lda #8
+        jsr SetHorizPos
+        ldx #1
+        lda #152
+        jsr SetHorizPos        
+       	sta WSYNC
+        sta HMOVE
+        
         lda #0
         sta AUDV0
         
@@ -135,6 +116,7 @@ NextFrame
 DecX
 	dec BallPosX
 XDirection
+
         lda BallPosX
         ldx #4
         jsr SetHorizPos
@@ -285,18 +267,6 @@ Ball
 
 	txa		; X -> A
         sec		; set carry for subtract
-        sbc YPos1	; local coordinate
-        cmp #SpriteHeight ; in sprite?
-        bcc InSprite	; yes, skip over next
-        lda #0		; not in sprite, load 0
-InSprite
-	tay		; local coord -> Y
-        lda PlayerSprite,y	; lookup frame data
-        sta GRP0	; store bitmap
-
-
-	txa		; X -> A
-        sec		; set carry for subtract
         sbc YPos2	; local coordinate
         cmp #SpriteHeight ; in sprite?
         bcc InSprite2	; yes, skip over next
@@ -306,6 +276,17 @@ InSprite2
         lda PlayerSprite,y	; lookup frame data
         sta GRP1	; store bitmap
 
+
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc YPos1	; local coordinate
+        cmp #SpriteHeight ; in sprite?
+        bcc InSprite	; yes, skip over next
+        lda #0		; not in sprite, load 0
+InSprite
+	tay		; local coord -> Y
+        lda PlayerSprite,y	; lookup frame data
+        sta GRP0	; store bitmap
 
 	dex
 	STA WSYNC
@@ -354,16 +335,12 @@ InSprite2
         bne NoMov
         inc YPos1
         inc YPos1
-        inc YPos1End
-        inc YPos1End
 NoMov
 	lda SWCHA
         and #%00100000
         bne NoMov2
         dec YPos1
         dec YPos1
-        dec YPos1End
-        dec YPos1End     
 NoMov2
 
         lda SWCHA
@@ -371,8 +348,7 @@ NoMov2
         bne NoMov3
         inc YPos2
         inc YPos2
-        inc YPos2End
-        inc YPos2End     
+   
 NoMov3
 
 	lda SWCHA
@@ -380,46 +356,35 @@ NoMov3
         bne NoMov4
         dec YPos2
         dec YPos2
-        dec YPos2End
-        dec YPos2End        
 NoMov4
 
 ; Verifies that players do not move outside the limits
 	lda YPos2
-        bne OK
+        cmp #2
+        bpl OK
   	lda #2
         sta YPos2
-        clc
-        adc #32
-        sta YPos2End        
 OK
 
-
 	lda YPos1
-        bne OK2
+        cmp #2
+        bpl OK2
   	lda #2
         sta YPos1
-        clc
-        adc #32
-        sta YPos1End 
 OK2
       
       
-      	lda YPos2End
-        cmp #$A2
+      	lda YPos2
+        cmp #$7F
         bmi OK3
-  	lda #$A0
-        sta YPos2End
-        lda #$80
+        lda #$7D
         sta YPos2         
 OK3
 
-      	lda YPos1End
-        cmp #$A2
+      	lda YPos1
+        cmp #$7F
         bmi OK4
-  	lda #$A0
-        sta YPos1End
-        lda #$80
+        lda #$7D
         sta YPos1 
 OK4
 
@@ -602,6 +567,7 @@ PlayerSprite
         .byte #%00111100;--
         .byte #%00111100;--
         .byte #%00011000;--
+        
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; SetHorizPos routine
