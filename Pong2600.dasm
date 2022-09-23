@@ -18,16 +18,21 @@ Temp		.byte
 PosPlayer1	.byte
 PosPlayer2	.byte
 
-; For scoreboard 12 bytes
+; For scoreboard 15 bytes
 Score0		.byte	; BCD score of player 0
 Score1		.byte	; BCD score of player 1
 FontBuf		.ds 10	; 2x5 array of playfield bytes
+ColorScoreP1	.byte
+ColorScoreP2	.byte
+CountScoreFrame .byte
+ScoredPlayer1	.byte
 
 ; Ball coordinates and direction 4 bytes
 BallPosX	.byte
 BallPosY	.byte
 BallDirection	.byte	; Byte 7 y dir - bit 6 for x dir 
 BallDirCounter	.byte
+BallEnable	.byte
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -44,12 +49,23 @@ Start
 	CLEAN_START
         lda #80
         sta PosPlayer1
-        lda #2
+        lda #37
         sta PosPlayer2  
 
         lda #0
         sta BallDirection
         sta BallDirCounter
+        sta ScoredPlayer1
+        lda #0
+        sta CountScoreFrame
+        
+        lda #%00000010
+        sta BallEnable
+
+        lda #$48
+        sta ColorScoreP1
+        lda #$a8
+        sta ColorScoreP2
         
         lda #$0E
         sta COLUP0
@@ -58,7 +74,7 @@ Start
         lda #%00010000
         sta NUSIZ0
         
-        lda #5
+        lda #50
         sta BallPosX
 
         lda #140
@@ -136,8 +152,6 @@ NextFrame
 
 ; Now we draw all four digits.
 
-        
-
         lda #%0000001
 	sta CTRLPF
 
@@ -165,9 +179,9 @@ NextFrame
         sty PF2
         lda #%00010010	; score mode + 2 pixel ball
         sta CTRLPF
-        lda #$48
+        lda ColorScoreP1
         sta COLUP0	; set color for left
-        lda #$a8
+        lda ColorScoreP2
         sta COLUP1	; set color for right        
         sta WSYNC
 ScanLoop1a
@@ -203,6 +217,11 @@ ScanLoop1a
         sta PF0
         sta PF1
         sta PF2
+        
+        lda #$48
+        sta COLUP0	; set color for left
+        lda #$a8
+        sta COLUP1	; set color for right  
 
         TIMER_WAIT
         
@@ -232,7 +251,7 @@ Loop
         lda #%00000000	; not in sprite, load 0
         jmp SetBall
 EnableBall
-        lda #%00000010	; lookup frame data
+        lda BallEnable	; lookup frame data
 SetBall
         sta ENABL	; store bitmap
 
@@ -300,6 +319,53 @@ InSprite
 ; 29 lines of overscan
 	TIMER_SETUP 29
         
+
+; Checking collisions between ball and left/right limit
+; Also updating ball positiona and score if necessary
+
+	sed
+	lda BallPosX
+        cmp #$9D
+        bne NoHitRightWall
+        lda #0
+        sta ScoredPlayer1
+        lda #60
+        sta CountScoreFrame
+        lda #100
+        sta BallPosX
+        lda BallDirection
+        eor #%01000000
+        sta BallDirection        
+        clc
+        lda Score0
+        adc #1
+        sta Score0
+NoHitRightWall
+
+	lda BallPosX
+        cmp #8
+        bne NoHitLeftWall
+        lda #1
+        sta ScoredPlayer1
+        lda #60
+        sta CountScoreFrame
+        lda #50
+	sta BallPosX        
+        lda BallDirection
+        eor #%01000000
+        sta BallDirection        
+        clc
+        lda Score1
+        adc #1
+        sta Score1
+NoHitLeftWall
+	cld
+        
+; Handles players movement    
+
+	lda CountScoreFrame
+        bne NoCheckMovement
+
 ; Checks ball movements        
         bit BallDirection
         bvc DecX
@@ -319,8 +385,8 @@ DecY
 	dec BallPosY
 YDirection
 
-        
-; Handles players movement        
+        lda #%00000010
+        sta BallEnable
 
         lda SWCHA
         and #%00010000
@@ -349,6 +415,12 @@ NoMov3
         dec PosPlayer2
         dec PosPlayer2
 NoMov4
+	jmp CheckMovement
+
+NoCheckMovement
+	lda #%00000000
+        sta BallEnable
+CheckMovement
 
 ; Verifies that players do not move outside the limits
 	lda PosPlayer2
@@ -438,39 +510,21 @@ NoHitTopWall
         sta AUDV0
 NoHitBottomWall
 
-; Checking collisions between ball and left/right limit
-; Also updating ball positiona and score if necessary
+        lda CountScoreFrame
+        beq NoActionScore
+        dec CountScoreFrame
+        ldy ScoredPlayer1        
+        jmp SetScoreColor
 
-	sed
-	lda BallPosX
-        cmp #$9D
-        bne NoHitRightWall
-        lda #100
-        sta BallPosX
-        lda BallDirection
-        eor #%01000000
-        sta BallDirection        
-        clc
-        lda Score0
-        adc #1
-        sta Score0
-NoHitRightWall
-
-	lda BallPosX
-        cmp #4
-        bne NoHitLeftWall
-        lda #50
-	sta BallPosX        
-        lda BallDirection
-        eor #%01000000
-        sta BallDirection        
-        clc
-        lda Score1
-        adc #1
-        sta Score1
-NoHitLeftWall
-	cld
-
+NoActionScore
+	lda #$48
+        sta ColorScoreP1
+        lda #$a8
+        sta ColorScoreP2
+        jmp ScoreCheckCompleted
+SetScoreColor
+	sta ColorScoreP1,y
+ScoreCheckCompleted        
 
         TIMER_WAIT
         
