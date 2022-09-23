@@ -13,16 +13,22 @@ SpriteHeight	equ 33
 	org $80
 
 Temp		.byte
-YPos1		.byte
-YPos2		.byte
-Score0	byte	; BCD score of player 0
-Score1	byte	; BCD score of player 1
-FontBuf	ds 10	; 2x5 array of playfield bytes
+
+; Vertical position players 2 bytes
+PosPlayer1	.byte
+PosPlayer2	.byte
+
+; For scoreboard 12 bytes
+Score0		.byte	; BCD score of player 0
+Score1		.byte	; BCD score of player 1
+FontBuf		.ds 10	; 2x5 array of playfield bytes
+
+; Ball coordinates and direction 4 bytes
 BallPosX	.byte
 BallPosY	.byte
-PreviousBall	.byte
-BallDirectionX	.byte
-BallDirectionY	.byte
+BallDirection	.byte	; Byte 7 y dir - bit 6 for x dir 
+BallDirCounter	.byte
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -37,14 +43,13 @@ BallDirectionY	.byte
 Start
 	CLEAN_START
         lda #80
-        sta YPos1
+        sta PosPlayer1
         lda #2
-        sta YPos2  
+        sta PosPlayer2  
 
         lda #0
-        sta PreviousBall
-        sta BallDirectionX
-        sta BallDirectionY        
+        sta BallDirection
+        sta BallDirCounter
         
         lda #$0E
         sta COLUP0
@@ -83,15 +88,6 @@ NextFrame
 ; 37 lines of underscan
 	TIMER_SETUP 37
         
-        ldx #0
-        lda #8
-        jsr SetHorizPos
-        ldx #1
-        lda #152
-        jsr SetHorizPos        
-       	sta WSYNC
-        sta HMOVE
-        
         lda #0
         sta AUDV0
         
@@ -108,40 +104,23 @@ NextFrame
         ldx #5
 	jsr GetBCDBitmap
         
-        lda BallDirectionX
-        bne DecX
-        
-        inc BallPosX
-        jmp XDirection
-DecX
-	dec BallPosX
-XDirection
 
         lda BallPosX
         ldx #4
         jsr SetHorizPos
+        
+        ; Set horizontal position player 1
+        ldx #0
+        lda #10
+        jsr SetHorizPos
+        ; Set horizontal position player 2
+        ldx #1
+        lda #148
+        jsr SetHorizPos
+        
        	sta WSYNC
-        sta HMOVE
+        sta HMOVE        
         
-        lda #%00000000
-        sta ENABL   
-        
-        lda BallPosX
-        cmp #$9E
-        bne NoExitBall
-        lda #3
-        sta BallPosX
-NoExitBall
-
-
-        lda BallDirectionY
-        bne DecY
-	inc BallPosY
-        jmp YDirection
-DecY
-	dec BallPosY
-YDirection
-
 	TIMER_WAIT
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        
@@ -245,29 +224,23 @@ Loop
 
 ; Draw ball
 
-	cpx BallPosY
-        bne NoBall
-        lda #%00000010
-        sta ENABL
-        lda #3
-        sta PreviousBall
-        jmp Ball
-NoBall
-	lda PreviousBall
-        beq NextBall
-        dec PreviousBall
-        jmp Ball
-NextBall        
-	lda #0
-        sta ENABL
-Ball
-
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc BallPosY	; local coordinate
+        cmp #4 ; in sprite?
+        bcc EnableBall	; yes, skip over next
+        lda #%00000000	; not in sprite, load 0
+        jmp SetBall
+EnableBall
+        lda #%00000010	; lookup frame data
+SetBall
+        sta ENABL	; store bitmap
 
 ; Draw Sprites
 
 	txa		; X -> A
         sec		; set carry for subtract
-        sbc YPos2	; local coordinate
+        sbc PosPlayer2	; local coordinate
         cmp #SpriteHeight ; in sprite?
         bcc InSprite2	; yes, skip over next
         lda #0		; not in sprite, load 0
@@ -279,7 +252,7 @@ InSprite2
 
 	txa		; X -> A
         sec		; set carry for subtract
-        sbc YPos1	; local coordinate
+        sbc PosPlayer1	; local coordinate
         cmp #SpriteHeight ; in sprite?
         bcc InSprite	; yes, skip over next
         lda #0		; not in sprite, load 0
@@ -327,105 +300,146 @@ InSprite
 ; 29 lines of overscan
 	TIMER_SETUP 29
         
+; Checks ball movements        
+        bit BallDirection
+        bvc DecX
+        
+        inc BallPosX
+        jmp XDirection
+DecX
+	dec BallPosX
+XDirection
+
+
+        bit BallDirection
+        bpl DecY
+	inc BallPosY
+        jmp YDirection
+DecY
+	dec BallPosY
+YDirection
+
         
 ; Handles players movement        
 
         lda SWCHA
         and #%00010000
         bne NoMov
-        inc YPos1
-        inc YPos1
+        inc PosPlayer1
+        inc PosPlayer1
 NoMov
 	lda SWCHA
         and #%00100000
         bne NoMov2
-        dec YPos1
-        dec YPos1
+        dec PosPlayer1
+        dec PosPlayer1
 NoMov2
 
         lda SWCHA
         and #%00000001
         bne NoMov3
-        inc YPos2
-        inc YPos2
+        inc PosPlayer2
+        inc PosPlayer2
    
 NoMov3
 
 	lda SWCHA
         and #%00000010
         bne NoMov4
-        dec YPos2
-        dec YPos2
+        dec PosPlayer2
+        dec PosPlayer2
 NoMov4
 
 ; Verifies that players do not move outside the limits
-	lda YPos2
+	lda PosPlayer2
         cmp #2
         bpl OK
   	lda #2
-        sta YPos2
+        sta PosPlayer2
 OK
 
-	lda YPos1
+	lda PosPlayer1
         cmp #2
         bpl OK2
   	lda #2
-        sta YPos1
+        sta PosPlayer1
 OK2
       
       
-      	lda YPos2
+      	lda PosPlayer2
         cmp #$7F
         bmi OK3
         lda #$7D
-        sta YPos2         
+        sta PosPlayer2         
 OK3
 
-      	lda YPos1
+      	lda PosPlayer1
         cmp #$7F
         bmi OK4
         lda #$7D
-        sta YPos1 
+        sta PosPlayer1 
 OK4
 
+; Checking collisions between ball and players
+
+	lda BallDirCounter
+        bne DoNotCheckPlayerHitBall
 
 	bit CXP1FB
         bvc NoHitPlayer1
-        lda BallDirectionX
-        eor #%00000001
-        sta BallDirectionX
+        lda #10
+        sta BallDirCounter        
+        lda BallDirection
+        eor #%01000000
+        sta BallDirection
         lda #6
         sta AUDV0
 NoHitPlayer1    
 
 	bit CXP0FB
         bvc NoHitPlayer0
-        lda BallDirectionX
-        eor #%00000001
-        sta BallDirectionX
+        lda #10
+        sta BallDirCounter        
+        lda BallDirection
+        eor #%01000000
+        sta BallDirection
         lda #6
         sta AUDV0
-NoHitPlayer0  
+NoHitPlayer0
+	jmp NoBallCounterDec
+
+DoNotCheckPlayerHitBall
+	dec BallDirCounter
+NoBallCounterDec
+
+	; Reset collition status
+        sta CXCLR
+
+
+; Checking collisions between ball and top/bottom wall
 
 	lda BallPosY
-        cmp #160
+        cmp #154
         bne NoHitTopWall
-        lda BallDirectionY
-        eor #%00000001
-        sta BallDirectionY
+        lda BallDirection
+        eor #%10000000
+        sta BallDirection
         lda #6
         sta AUDV0
 NoHitTopWall
 
 	lda BallPosY
-        cmp #6
+        cmp #2
         bne NoHitBottomWall
-        lda BallDirectionY
-        eor #%00000001
-        sta BallDirectionY
+        lda BallDirection
+        eor #%10000000
+        sta BallDirection
         lda #6
         sta AUDV0
 NoHitBottomWall
+
+; Checking collisions between ball and left/right limit
+; Also updating ball positiona and score if necessary
 
 	sed
 	lda BallPosX
@@ -433,9 +447,9 @@ NoHitBottomWall
         bne NoHitRightWall
         lda #100
         sta BallPosX
-        lda BallDirectionX
-        eor #%00000001
-        sta BallDirectionX        
+        lda BallDirection
+        eor #%01000000
+        sta BallDirection        
         clc
         lda Score0
         adc #1
@@ -447,9 +461,9 @@ NoHitRightWall
         bne NoHitLeftWall
         lda #50
 	sta BallPosX        
-        lda BallDirectionX
-        eor #%00000001
-        sta BallDirectionX        
+        lda BallDirection
+        eor #%01000000
+        sta BallDirection        
         clc
         lda Score1
         adc #1
@@ -457,7 +471,7 @@ NoHitRightWall
 NoHitLeftWall
 	cld
 
-        sta CXCLR
+
         TIMER_WAIT
         
 ; total = 262 lines, go to next frame
