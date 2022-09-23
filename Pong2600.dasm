@@ -4,7 +4,9 @@
         include "macro.h"
         include "xmacro.h"
         
-SpriteHeight	equ 33        
+SpriteHeight	equ 33
+ColorP0		equ $48
+ColorP1		equ $a8
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Variables segment
@@ -15,17 +17,18 @@ SpriteHeight	equ 33
 Temp		.byte
 
 ; Vertical position players 2 bytes
+PosPlayer0	.byte
 PosPlayer1	.byte
-PosPlayer2	.byte
 
 ; For scoreboard 15 bytes
 Score0		.byte	; BCD score of player 0
 Score1		.byte	; BCD score of player 1
 FontBuf		.ds 10	; 2x5 array of playfield bytes
+ColorScoreP0	.byte
 ColorScoreP1	.byte
-ColorScoreP2	.byte
 CountScoreFrame .byte
-ScoredPlayer1	.byte
+ScoredPlayer0	.byte	; 0 scored player 0, 1 scored player 1
+PlayerWin	.byte
 
 ; Ball coordinates and direction 4 bytes
 BallPosX	.byte
@@ -48,27 +51,26 @@ BallEnable	.byte
 Start
 	CLEAN_START
         lda #80
-        sta PosPlayer1
+        sta PosPlayer0
         lda #37
-        sta PosPlayer2  
+        sta PosPlayer1  
 
         lda #0
         sta BallDirection
         sta BallDirCounter
-        sta ScoredPlayer1
+        sta ScoredPlayer0
+        sta PlayerWin
         lda #0
         sta CountScoreFrame
         
         lda #%00000010
         sta BallEnable
 
-        lda #$48
-        sta ColorScoreP1
-        lda #$a8
-        sta ColorScoreP2
-        
-        lda #$0E
+        lda #ColorP0
+        sta ColorScoreP0
         sta COLUP0
+        lda #ColorP1
+        sta ColorScoreP1
         sta COLUP1
         
         lda #%00010000
@@ -83,6 +85,8 @@ Start
         lda #%00000010
         sta ENABL
         
+        lda #0
+        sta AUDV0
         lda #4
         sta AUDC0
         lda #5
@@ -179,9 +183,9 @@ NextFrame
         sty PF2
         lda #%00010010	; score mode + 2 pixel ball
         sta CTRLPF
-        lda ColorScoreP1
+        lda ColorScoreP0
         sta COLUP0	; set color for left
-        lda ColorScoreP2
+        lda ColorScoreP1
         sta COLUP1	; set color for right        
         sta WSYNC
 ScanLoop1a
@@ -218,10 +222,15 @@ ScanLoop1a
         sta PF1
         sta PF2
         
-        lda #$48
+        lda PlayerWin
+        bne Finished
+        
+        lda #ColorP0
         sta COLUP0	; set color for left
-        lda #$a8
-        sta COLUP1	; set color for right  
+        lda #ColorP1
+        sta COLUP1	; set color for right
+        
+Finished
 
         TIMER_WAIT
         
@@ -257,25 +266,26 @@ SetBall
 
 ; Draw Sprites
 
-	txa		; X -> A
-        sec		; set carry for subtract
-        sbc PosPlayer2	; local coordinate
-        cmp #SpriteHeight ; in sprite?
-        bcc InSprite2	; yes, skip over next
-        lda #0		; not in sprite, load 0
-InSprite2
-	tay		; local coord -> Y
-        lda PlayerSprite,y	; lookup frame data
-        sta GRP1	; store bitmap
-
-
+	; Sprite 1
 	txa		; X -> A
         sec		; set carry for subtract
         sbc PosPlayer1	; local coordinate
         cmp #SpriteHeight ; in sprite?
-        bcc InSprite	; yes, skip over next
+        bcc InSprite1	; yes, skip over next
         lda #0		; not in sprite, load 0
-InSprite
+InSprite1
+	tay		; local coord -> Y
+        lda PlayerSprite,y	; lookup frame data
+        sta GRP1	; store bitmap
+
+	; Sprite 0
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc PosPlayer0	; local coordinate
+        cmp #SpriteHeight ; in sprite?
+        bcc InSprite0	; yes, skip over next
+        lda #0		; not in sprite, load 0
+InSprite0
 	tay		; local coord -> Y
         lda PlayerSprite,y	; lookup frame data
         sta GRP0	; store bitmap
@@ -328,8 +338,17 @@ InSprite
         cmp #$9D
         bne NoHitRightWall
         lda #0
-        sta ScoredPlayer1
-        lda #60
+        sta ScoredPlayer0
+        lda Score1
+        cmp #2
+        bne NotWonYet0
+        lda #1
+        sta PlayerWin
+        lda #160
+        jmp SetWin0
+NotWonYet0        
+        lda #20
+SetWin0 
         sta CountScoreFrame
         lda #100
         sta BallPosX
@@ -346,8 +365,17 @@ NoHitRightWall
         cmp #8
         bne NoHitLeftWall
         lda #1
-        sta ScoredPlayer1
-        lda #60
+        sta ScoredPlayer0
+        lda Score0
+        cmp #2
+        bne NotWonYet1
+        lda #1
+        sta PlayerWin        
+        lda #160
+        jmp SetWin1
+NotWonYet1        
+        lda #20
+SetWin1        
         sta CountScoreFrame
         lda #50
 	sta BallPosX        
@@ -391,29 +419,29 @@ YDirection
         lda SWCHA
         and #%00010000
         bne NoMov
-        inc PosPlayer1
-        inc PosPlayer1
+        inc PosPlayer0
+        inc PosPlayer0
 NoMov
 	lda SWCHA
         and #%00100000
         bne NoMov2
-        dec PosPlayer1
-        dec PosPlayer1
+        dec PosPlayer0
+        dec PosPlayer0
 NoMov2
 
         lda SWCHA
         and #%00000001
         bne NoMov3
-        inc PosPlayer2
-        inc PosPlayer2
+        inc PosPlayer1
+        inc PosPlayer1
    
 NoMov3
 
 	lda SWCHA
         and #%00000010
         bne NoMov4
-        dec PosPlayer2
-        dec PosPlayer2
+        dec PosPlayer1
+        dec PosPlayer1
 NoMov4
 	jmp CheckMovement
 
@@ -423,33 +451,33 @@ NoCheckMovement
 CheckMovement
 
 ; Verifies that players do not move outside the limits
-	lda PosPlayer2
+	lda PosPlayer1
         cmp #2
         bpl OK
   	lda #2
-        sta PosPlayer2
+        sta PosPlayer1
 OK
 
-	lda PosPlayer1
+	lda PosPlayer0
         cmp #2
         bpl OK2
   	lda #2
-        sta PosPlayer1
+        sta PosPlayer0
 OK2
       
       
-      	lda PosPlayer2
+      	lda PosPlayer1
         cmp #$7F
         bmi OK3
         lda #$7D
-        sta PosPlayer2         
+        sta PosPlayer1         
 OK3
 
-      	lda PosPlayer1
+      	lda PosPlayer0
         cmp #$7F
         bmi OK4
         lda #$7D
-        sta PosPlayer1 
+        sta PosPlayer0 
 OK4
 
 ; Checking collisions between ball and players
@@ -457,6 +485,19 @@ OK4
 	lda BallDirCounter
         bne DoNotCheckPlayerHitBall
 
+	bit CXP0FB
+        bvc NoHitPlayer0
+        lda #10
+        sta BallDirCounter        
+        lda BallDirection
+        eor #%01000000
+        sta BallDirection
+        lda #10
+        sta AUDV0
+NoHitPlayer0
+	jmp NoBallCounterDec
+        
+        
 	bit CXP1FB
         bvc NoHitPlayer1
         lda #10
@@ -466,19 +507,8 @@ OK4
         sta BallDirection
         lda #6
         sta AUDV0
-NoHitPlayer1    
+NoHitPlayer1
 
-	bit CXP0FB
-        bvc NoHitPlayer0
-        lda #10
-        sta BallDirCounter        
-        lda BallDirection
-        eor #%01000000
-        sta BallDirection
-        lda #6
-        sta AUDV0
-NoHitPlayer0
-	jmp NoBallCounterDec
 
 DoNotCheckPlayerHitBall
 	dec BallDirCounter
@@ -513,17 +543,22 @@ NoHitBottomWall
         lda CountScoreFrame
         beq NoActionScore
         dec CountScoreFrame
-        ldy ScoredPlayer1        
+        bne NoCheckWin
+        lda PlayerWin
+        beq NoCheckWin
+        jmp Start
+NoCheckWin        
+        ldy ScoredPlayer0        
         jmp SetScoreColor
 
 NoActionScore
 	lda #$48
-        sta ColorScoreP1
+        sta ColorScoreP0
         lda #$a8
-        sta ColorScoreP2
+        sta ColorScoreP1
         jmp ScoreCheckCompleted
 SetScoreColor
-	sta ColorScoreP1,y
+	sta ColorScoreP0,y
 ScoreCheckCompleted        
 
         TIMER_WAIT
