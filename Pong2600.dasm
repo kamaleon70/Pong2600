@@ -7,7 +7,7 @@
 SpriteHeight	equ 33
 ColorP0		equ $48
 ColorP1		equ $a8
-ScoreToWin	equ #21
+ScoreToWin	equ $20
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Variables segment
@@ -340,7 +340,7 @@ InSprite0
         bne NoHitRightWall
         lda #0
         sta ScoredPlayer0
-        lda Score1
+        lda Score0
         cmp #ScoreToWin
         bne NotWonYet0
         lda #1
@@ -367,7 +367,7 @@ NoHitRightWall
         bne NoHitLeftWall
         lda #1
         sta ScoredPlayer0
-        lda Score0
+        lda Score1
         cmp #ScoreToWin
         bne NotWonYet1
         lda #1
