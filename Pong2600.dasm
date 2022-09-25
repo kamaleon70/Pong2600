@@ -21,7 +21,7 @@ Temp		.byte
 PosPlayer0	.byte
 PosPlayer1	.byte
 
-; For scoreboard 15 bytes
+; For scoreboard 17 bytes
 Score0		.byte	; BCD score of player 0
 Score1		.byte	; BCD score of player 1
 FontBuf		.ds 10	; 2x5 array of playfield bytes
@@ -31,7 +31,7 @@ CountScoreFrame .byte
 ScoredPlayer0	.byte	; 0 scored player 0, 1 scored player 1
 PlayerWin	.byte
 
-; Ball coordinates and direction 4 bytes
+; Ball coordinates and direction 5 bytes
 BallPosX	.byte
 BallPosY	.byte
 BallDirection	.byte	; Byte 7 y dir - bit 6 for x dir 
@@ -92,6 +92,9 @@ Start
         sta AUDC0
         lda #5
         sta AUDF0
+        
+        lda #1
+        sta VDELP1
  
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -252,18 +255,17 @@ Finished
 Loop
 
 ; Draw ball
-
+	STA WSYNC
+        
 	txa		; X -> A
+        ldy #%00000000
         sec		; set carry for subtract
         sbc BallPosY	; local coordinate
         cmp #4 ; in sprite?
-        bcc EnableBall	; yes, skip over next
-        lda #%00000000	; not in sprite, load 0
-        jmp SetBall
-EnableBall
-        lda BallEnable	; lookup frame data
+        bcs SetBall	; yes, skip over next
+        ldy BallEnable	; lookup frame data
 SetBall
-        sta ENABL	; store bitmap
+        sty ENABL	; store bitmap
 
 ; Draw Sprites
 
@@ -292,7 +294,6 @@ InSprite0
         sta GRP0	; store bitmap
 
 	dex
-	STA WSYNC
         bne Loop
 
 
@@ -468,16 +469,16 @@ OK2
       
       
       	lda PosPlayer1
-        cmp #$7F
+        cmp #$7C
         bmi OK3
-        lda #$7D
+        lda #$7B
         sta PosPlayer1         
 OK3
 
       	lda PosPlayer0
-        cmp #$7F
+        cmp #$7C
         bmi OK4
-        lda #$7D
+        lda #$7b
         sta PosPlayer0 
 OK4
 
@@ -617,7 +618,7 @@ GetBCDBitmap subroutine
         bne .loop2
 	rts
 
-	org $FF00
+	org $F700
 
 ; Bitmap pattern for digits
 DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
@@ -715,6 +716,6 @@ SetHorizPos SUBROUTINE
 ; Epilogue
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-	org $fffc
+	org $f7fc
         .word Start	; reset vector
         .word Start	; BRK vector
